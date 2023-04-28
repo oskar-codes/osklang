@@ -7,10 +7,12 @@
     "test": "node tests.js"
   },
   "author": "Oskar Zanota",
+  "type": "module",
   "license": "ISC",
   "bin": "./shell.js",
   "dependencies": {
     "progress": "^2.0.3",
+    "prompt-sync": "^4.2.0",
     "xmlhttprequest": "^1.8.0"
   }
 }

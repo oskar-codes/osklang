@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-const language = 'osklang_simple';
 
-const osklang = require(`./${language}.js`);
-const prompt = require('prompt-sync')();
-const fs = require('fs');
+import osklang from "./osklang_simple.js";
+import prompt_sync from "prompt-sync";
+import { readFileSync } from 'fs';
+
+const prompt = prompt_sync();
 
 const [,,...args] = process.argv;
 
@@ -11,7 +12,7 @@ if (args[0]) {
   // execute file
   let code;
   try {
-    code = fs.readFileSync(args[0], 'utf8');
+    code = readFileSync(args[0], 'utf8');
   } catch(e) {
     console.log('Invalid input file');
     process.exit(1);
@@ -22,7 +23,7 @@ if (args[0]) {
 } else {
   // open repl
   while (true) {
-    const input = prompt('> ');
+    const input = prompt("> ");
     if (input === null) break;
   
     const { output, error } = osklang.evaluate('<stdin>', input, 0);

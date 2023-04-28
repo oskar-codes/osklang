@@ -17,8 +17,8 @@ function type(val) {
   return typeof val;
 }
 
-const prompt = require('prompt-sync')();
-const XMLHttpRequest = require("xmlhttprequest").XMLHttpRequest;
+import prompt from "prompt-sync";
+import { XMLHttpRequest } from "xmlhttprequest";
 
 const TOKEN = {
   PLUS         :   'PLUS',         // +
@@ -1667,6 +1667,6 @@ function formatOutput(e) {
   return e.toString();
 }
 
-module.exports = {
+export default {
   evaluate
 }
