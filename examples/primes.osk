@@ -1,0 +1,23 @@
+isPrime = function(num) do
+  for x = 2, floor(sqrt(num)) + 1 do
+    if num % x == 0 do
+      return false
+    end
+  end
+  return true
+end
+
+max = num(input('Enter primes to generate: '))
+print(str(max) + ' first primes: ')
+
+nGenerated = 0
+n = 1
+
+while nGenerated < max do
+  if isPrime(n) do
+    print(n)
+    nGenerated += 1
+  end
+
+  n += 1
+end

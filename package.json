@@ -1,0 +1,16 @@
+{
+  "name": "osklang",
+  "version": "1.0.0",
+  "description": "The source code of the osklang programming language",
+  "main": "shell.js",
+  "scripts": {
+    "test": "node tests.js"
+  },
+  "author": "Oskar Zanota",
+  "license": "ISC",
+  "bin": "./shell.js",
+  "dependencies": {
+    "progress": "^2.0.3",
+    "xmlhttprequest": "^1.8.0"
+  }
+}

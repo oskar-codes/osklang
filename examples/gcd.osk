@@ -1,0 +1,22 @@
+gcd = function(a, b) do
+  if b == 0 do
+    return a
+  end
+  return gcd(b, a%b)
+end
+
+gcdWithUV = function(a, b) do
+  if a < b do
+    return gcdWithUV(b, a)
+  elif b == 0 do
+    return [1, 0, a]
+  else
+    q = floor(a / b)
+    r = a % b
+    result = gcdWithUV(b, r)
+    return [result#1, (result#0) - ((result#1) * q), result#2]
+  end
+end
+
+output = gcdWithUV(549, 174)
+print(output)

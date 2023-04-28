@@ -1,0 +1,7 @@
+add = function(a,b) do
+  return [a,b]
+end
+
+x = add(1,2)
+
+print(x)
