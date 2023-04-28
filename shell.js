@@ -6,19 +6,19 @@ import { readFileSync } from 'fs';
 
 const prompt = prompt_sync();
 
-const [,,...args] = process.argv;
+const [,,fileName] = process.argv;
 
-if (args[0]) {
+if (fileName) {
   // execute file
   let code;
   try {
-    code = readFileSync(args[0], 'utf8');
+    code = readFileSync(fileName, 'utf8');
   } catch(e) {
     console.log('Invalid input file');
     process.exit(1);
   }
 
-  const { error } = osklang.evaluate(args[0], code);
+  const { error } = osklang.evaluate(fileName, code);
   if (error) console.log(error);
 } else {
   // open repl
