@@ -19,6 +19,7 @@ function type(val) {
 
 import prompt_sync from "prompt-sync";
 import { XMLHttpRequest } from "xmlhttprequest";
+import { readFileSync } from 'fs';
 const prompt = prompt_sync();
 
 const TOKEN = {
@@ -1088,7 +1089,14 @@ class Interpreter {
         
         const builtin = BUILTINS.find(e => e.name === funcName);
         if (exists(builtin)) {
-          return builtin.execute(node.start, node.end, this.context, ...args);
+          try {
+            return builtin.execute(node.start, node.end, this.context, ...args);
+          } catch (e) {
+            if (e instanceof RuntimeError) {
+              throw e;
+            }
+            throw new RuntimeError(node.func.token.start, node.func.token.end, e.message, this.context)
+          }
         }
       }
 
@@ -1492,6 +1500,7 @@ class ListNode extends Node {
 const context = new Context('<program>', null, new Position(0, 0, 0, '<program>', ''));
 
 context.set('PI', 3.1415926)
+context.set('e', 2.7182818);
 
 class Builtin {
   constructor(name, func, argsNumber, context) {
@@ -1596,6 +1605,25 @@ const BUILTINS = [
     xhr.open('GET', url, false);
     xhr.send();
     return xhr.responseText;
+  }, 1),
+  new Builtin('load', function(file) {
+    let code;
+    try {
+      code = readFileSync(file, 'utf8');
+    } catch(e) {
+      throw new Error(`Could not read file: '${file}'`);
+    }
+
+    const tokenizer = new Tokenizer(code, file);
+    let tokens = tokenizer.tokenize();
+
+    const parser = new Parser(tokens);
+    let tree = parser.parse();
+
+    const interpreter = new Interpreter(tree, context);
+    let output = interpreter.evaluate();
+
+    return null;
   }, 1)
 ]
 

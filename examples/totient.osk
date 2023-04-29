@@ -13,5 +13,3 @@ phi = function(n) do
   end
   return result
 end
-
-print(phi(num(input("Enter n: "))))

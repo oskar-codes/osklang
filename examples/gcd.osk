@@ -17,6 +17,3 @@ gcdWithUV = function(a, b) do
     return [result#1, (result#0) - ((result#1) * q), result#2]
   end
 end
-
-output = gcdWithUV(549, 174)
-print(output)
