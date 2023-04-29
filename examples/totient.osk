@@ -1,0 +1,17 @@
+phi = function(n) do
+  result = n
+  for i = 2,sqrt(n)+1 do
+      if n % i == 0 do
+          while n % i == 0 do
+            n = n / i
+          end
+          result -= floor(result / i)
+      end
+  end
+  if n > 1 do
+    result -= floor(result / n);
+  end
+  return result
+end
+
+print(phi(num(input("Enter n: "))))

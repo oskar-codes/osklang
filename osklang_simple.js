@@ -17,8 +17,9 @@ function type(val) {
   return typeof val;
 }
 
-import prompt from "prompt-sync";
+import prompt_sync from "prompt-sync";
 import { XMLHttpRequest } from "xmlhttprequest";
+const prompt = prompt_sync();
 
 const TOKEN = {
   PLUS         :   'PLUS',         // +
