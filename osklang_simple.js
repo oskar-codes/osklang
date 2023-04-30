@@ -28,7 +28,6 @@ const TOKEN = {
   MUL          :   'MUL',          // *
   DIV          :   'DIV',          // /
   MOD          :   'MOD',          // %
-  HASH         :   'HASH',         // #
   INT          :   'INT',          // 42
   FLOAT        :   'FLOAT',        // 4.2
   BOOLEAN      :   'BOOLEAN',      // true | false
@@ -180,7 +179,6 @@ class Token {
       case TOKEN.MUL: return '*';
       case TOKEN.DIV: return '/';
       case TOKEN.MOD: return '%';
-      case TOKEN.HASH: return '#';
       case TOKEN.INT:
       case TOKEN.FLOAT:
       case TOKEN.BOOLEAN:
@@ -265,9 +263,6 @@ class Tokenizer {
         this.advance();
       } else if (this.currentCharacter === '%') {
         tokens.push(new Token(TOKEN.MOD, null, this.pos));
-        this.advance();
-      } else if (this.currentCharacter === '#') {
-        tokens.push(new Token(TOKEN.HASH, null, this.pos));
         this.advance();
       } else if (this.currentCharacter === '(') {
         tokens.push(new Token(TOKEN.LPAREN, null, this.pos));
@@ -619,7 +614,7 @@ class Parser {
   parseCall() {
     let left = this.parseAtom();
     
-    const start = this.currentToken.start;
+    let start = this.currentToken.start;
 
     while ([TOKEN.LPAREN, TOKEN.LSQUARE].includes(this.currentToken.type)) {
       if (this.currentToken.type === TOKEN.LPAREN) {
@@ -656,11 +651,12 @@ class Parser {
         left = new CallNode(left, args, start, end);
   
       } else if (this.currentToken.type === TOKEN.LSQUARE) {
+        start = this.currentToken.start;
         this.advance();
         const index = this.parseExpr();
         if (this.currentToken.type !== TOKEN.RSQUARE) {
           throw new InvalidSyntaxError(this.currentToken.start, this.currentToken.end,
-            "Expected ']'")
+            "Expected ']'");
         }
         const end = this.currentToken.end;
         this.advance();
@@ -670,37 +666,6 @@ class Parser {
     }
 
     return left;
-  }
-
-  parseListAccess() {
-
-    const atom = this.parseCall();
-
-    const start = this.currentToken.start;
-    if (this.currentToken.type === TOKEN.LSQUARE) {
-      this.advance();
-      const index = this.parseExpr();
-      if (this.currentToken.type !== TOKEN.RSQUARE) {
-        throw new InvalidSyntaxError(this.currentToken.start, this.currentToken.end,
-          "Expected ']'");
-      }
-      const end = this.currentToken.end;
-      this.advance();
-      return new ListAccessNode(atom, index, start, end);
-    }
-
-    return atom;
-
-
-    // let left = this.parseCall();
-
-    // while (this.currentToken.type === TOKEN.HASH) {
-    //   const operationToken = this.currentToken;
-    //   this.advance();
-    //   const right = this.parseCall();
-    //   left = new BinaryOperatorNode(left, operationToken, right);
-    // }
-    // return left;
   }
 
   parseAtom() {
@@ -1141,11 +1106,15 @@ class Interpreter {
     if (node instanceof ListAccessNode) {
       const list = this.process(node.list);
       const index = this.process(node.index);
+      
+      const start = node.start;
+      const end = node.end;
+
       if (list.type !== 'elements') {
-        throw new RuntimeError(node.list.token.start, node.list.token.end, `'${node.list.token.value}' is not a list`, this.context);
+        throw new RuntimeError(start, end, `'${node.list.token.value}' is not a list`, this.context);
       }
       if (index < 0 || index >= list.length) {
-        throw new RuntimeError(node.list.token.start, node.list.token.end, `Index out of range`, this.context);
+        throw new RuntimeError(start, end, `Index ${index} out of range for length ${list.length}`, this.context);
       }
       return list[index];
     }
@@ -1263,17 +1232,6 @@ class Interpreter {
     
         if (type(left) === 'number' && type(right) === 'string') {
           return right.repeat(left);
-        }
-      }
-
-      // LIST ACCESS
-      if (node.token.type === TOKEN.HASH) {
-        if (type(left) === 'list' && type(right) === 'number') {
-          if (right >= 0 && right < left.length) {
-            return left[right];
-          }
-          throw new RuntimeError(node.token.start, node.token.end,
-            'Index out of range', this.context)
         }
       }
 
