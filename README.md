@@ -34,6 +34,14 @@ Booleans hold either the value of `true` of `false`.
 ## Nil
 `nil` is the only type that can only have `nil` as value. It is also falsy, which means it is coerced to `false` when used in an if statement or a while loop.
 
+## List
+A list is a special type that can contain any number of elements of any type. It is created using `[` and `]`:
+```
+[1, 2, 3]
+['Foo', 'Bar']
+[1, 'Foo', true]
+```
+
 # Variables
 Variables are dynamically typed, do not need declaration, and are function scoped.
 ```

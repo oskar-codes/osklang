@@ -14,6 +14,6 @@ gcdWithUV = function(a, b) do
     q = floor(a / b)
     r = a % b
     result = gcdWithUV(b, r)
-    return [result#1, (result#0) - ((result#1) * q), result#2]
+    return [result[1], (result[0]) - ((result[1]) * q), result[2]]
   end
 end

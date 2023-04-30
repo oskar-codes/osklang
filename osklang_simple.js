@@ -396,6 +396,7 @@ class Tokenizer {
       this.advance();
       return new Token(TOKEN.ME, null, startPos, this.pos);
     } else if (this.currentCharacter === '-') {
+      // match -- comments
       while (exists(this.currentCharacter) && this.currentCharacter !== '\n') {
         this.advance();
       }
@@ -616,57 +617,90 @@ class Parser {
   }
 
   parseCall() {
-    const atom = this.parseListAccess();
+    let left = this.parseAtom();
     
     const start = this.currentToken.start;
-    if (this.currentToken.type === TOKEN.LPAREN) {
 
-      let end;
-
-      this.advance();
-      const args = [];
-
-      if (this.currentToken.type === TOKEN.RPAREN) {
-        end = this.currentToken.end;
-        
+    while ([TOKEN.LPAREN, TOKEN.LSQUARE].includes(this.currentToken.type)) {
+      if (this.currentToken.type === TOKEN.LPAREN) {
+  
+        let end;
+  
         this.advance();
-      } else {
-
-        args.push(this.parseExpr());
-        
-        while (this.currentToken.type === TOKEN.COMMA) {
+        const args = [];
+  
+        if (this.currentToken.type === TOKEN.RPAREN) {
+          end = this.currentToken.end;
+          
           this.advance();
+        } else {
+  
           args.push(this.parseExpr());
+          
+          while (this.currentToken.type === TOKEN.COMMA) {
+            this.advance();
+            args.push(this.parseExpr());
+          }
+  
+          if (this.currentToken.type !== TOKEN.RPAREN) {
+            throw new InvalidSyntaxError(
+              this.currentToken.start, this.currentToken.end,
+              "Expected ',' or ')'"
+            );
+          }
+  
+          end = this.currentToken.end;
+  
+          this.advance()
         }
-
-        if (this.currentToken.type !== TOKEN.RPAREN) {
-          throw new InvalidSyntaxError(
-            this.currentToken.start, this.currentToken.end,
-            "Expected ',' or ')'"
-          );
+        left = new CallNode(left, args, start, end);
+  
+      } else if (this.currentToken.type === TOKEN.LSQUARE) {
+        this.advance();
+        const index = this.parseExpr();
+        if (this.currentToken.type !== TOKEN.RSQUARE) {
+          throw new InvalidSyntaxError(this.currentToken.start, this.currentToken.end,
+            "Expected ']'")
         }
-
-        end = this.currentToken.end;
-
-        this.advance()
+        const end = this.currentToken.end;
+        this.advance();
+        left = new ListAccessNode(left, index, start, end);
       }
-      return new CallNode(atom, args, start, end);
 
     }
 
-    return atom;
+    return left;
   }
 
   parseListAccess() {
-    let left = this.parseAtom();
 
-    while (this.currentToken.type === TOKEN.HASH) {
-      const operationToken = this.currentToken;
+    const atom = this.parseCall();
+
+    const start = this.currentToken.start;
+    if (this.currentToken.type === TOKEN.LSQUARE) {
       this.advance();
-      const right = this.parseAtom();
-      left = new BinaryOperatorNode(left, operationToken, right);
+      const index = this.parseExpr();
+      if (this.currentToken.type !== TOKEN.RSQUARE) {
+        throw new InvalidSyntaxError(this.currentToken.start, this.currentToken.end,
+          "Expected ']'");
+      }
+      const end = this.currentToken.end;
+      this.advance();
+      return new ListAccessNode(atom, index, start, end);
     }
-    return left;
+
+    return atom;
+
+
+    // let left = this.parseCall();
+
+    // while (this.currentToken.type === TOKEN.HASH) {
+    //   const operationToken = this.currentToken;
+    //   this.advance();
+    //   const right = this.parseCall();
+    //   left = new BinaryOperatorNode(left, operationToken, right);
+    // }
+    // return left;
   }
 
   parseAtom() {
@@ -796,8 +830,8 @@ class Parser {
       return new FunctionDeclarationNode(null, argNameTokens.map(e => e.value), functionBody, token, token.start, this.currentToken.end);
     
     } else {
-      throw new InvalidSyntaxError(this.currentToken.start, this.current,
-        'Expected expression');
+      throw new InvalidSyntaxError(this.currentToken.start, this.currentToken.end,
+        'Expected arrow or "do"');
     }
   }
 
@@ -1089,14 +1123,7 @@ class Interpreter {
         
         const builtin = BUILTINS.find(e => e.name === funcName);
         if (exists(builtin)) {
-          try {
-            return builtin.execute(node.start, node.end, this.context, ...args);
-          } catch (e) {
-            if (e instanceof RuntimeError) {
-              throw e;
-            }
-            throw new RuntimeError(node.func.token.start, node.func.token.end, e.message, this.context)
-          }
+          return builtin.execute(node.start, node.end, this.context, ...args);
         }
       }
 
@@ -1107,8 +1134,20 @@ class Interpreter {
         // if (output.constructor.name === 'Array') return null;
         return output;
       } else {
-        throw new RuntimeError(node.func.token.start, node.func.token.end, `'${functionToCall}' is not a function`, this.context);
+        throw new RuntimeError(node.func.token.start, node.func.token.end, `'${node.func.token.value}' is not a function`, this.context);
       }
+    }
+
+    if (node instanceof ListAccessNode) {
+      const list = this.process(node.list);
+      const index = this.process(node.index);
+      if (list.type !== 'elements') {
+        throw new RuntimeError(node.list.token.start, node.list.token.end, `'${node.list.token.value}' is not a list`, this.context);
+      }
+      if (index < 0 || index >= list.length) {
+        throw new RuntimeError(node.list.token.start, node.list.token.end, `Index out of range`, this.context);
+      }
+      return list[index];
     }
 
     if (node instanceof UnaryOperatorNode) {
@@ -1437,6 +1476,15 @@ class CallNode extends Node {
     this.end = end;
   }
 }
+class ListAccessNode extends Node {
+  constructor(list, index, start, end) {
+    super();
+    this.list = list;
+    this.index = index;
+    this.start = start;
+    this.end = end;
+  }
+}
 class IfStatementNode extends Node {
   constructor(clauses) {
     super();
@@ -1611,7 +1659,8 @@ const BUILTINS = [
     try {
       code = readFileSync(file, 'utf8');
     } catch(e) {
-      throw new Error(`Could not read file: '${file}'`);
+      throw new RuntimeError(this.start, this.end,
+        `Could not read file: '${file}'`, this.context);
     }
 
     const tokenizer = new Tokenizer(code, file);
@@ -1650,7 +1699,7 @@ function evaluate(fileName, input) {
     }
   }
 
-  // console.log(tree.statements);
+  // console.log(JSON.stringify(tree.statements, null, 2));
   // return { output: tree.statements };
 
   const interpreter = new Interpreter(tree, context);

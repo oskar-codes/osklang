@@ -1,23 +1,7 @@
-
-cache = []
-for i = 0,25 do
-  set(cache, i, [i, 0])
-end
-
 fib = function(n) do
   if n <= 1 do
     return n
   end
-
-  
-  -- for i=0,length(cache) do
-  --   if cache#i#0 == n && cache#i#1 != 0 do
-  --     return cache#i#1
-  --   end
-  -- end
-
-  -- set(cache#i, 1, fib(n - 1) + fib(n - 2))
-
 
   return fib(n - 1) + fib(n - 2)
 end

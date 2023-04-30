@@ -1,6 +1,6 @@
 load("examples/gcd.osk")
 load("examples/totient.osk")
 
-print(gcd(245,23))
+print(gcd(245,125))
 
 print(phi(99))
