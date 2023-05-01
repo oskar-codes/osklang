@@ -16,6 +16,10 @@ function type(val) {
   if (val?.constructor === Array) return 'list';
   return typeof val;
 }
+function sleep(delay) {
+  const start = new Date().getTime();
+  while (new Date().getTime() < start + delay);
+}
 
 import prompt_sync from "prompt-sync";
 import { XMLHttpRequest } from "xmlhttprequest";
@@ -201,6 +205,8 @@ class Token {
       case TOKEN.ME: return '-=';
       case TOKEN.LPAREN: return '(';
       case TOKEN.RPAREN: return ')';
+      case TOKEN.LSQUARE: return '[';
+      case TOKEN.RSQUARE: return ']';
       case TOKEN.COMMA: return ',';
       case TOKEN.NEWLINE: return '<NEWLINE>';
       case TOKEN.EOF: return '<EOF>';
@@ -370,7 +376,12 @@ class Tokenizer {
       this.advance();
     }
 
+    if (this.currentCharacter !== delimiter) {
+      throw new InvalidSyntaxError(start, this.pos, 'Unterminated string');
+    }
+
     this.advance();
+
     return new Token(TOKEN.STRING, str, start, this.pos);
   }
 
@@ -407,6 +418,7 @@ class Tokenizer {
       this.advance();
       return new Token(TOKEN.OR, null, startPos, this.pos);
     }
+    this.advance();
     throw new InvalidSyntaxError(startPos, this.pos,
       `Invalid operator`)
   }
@@ -418,6 +430,7 @@ class Tokenizer {
       this.advance();
       return new Token(TOKEN.AND, null, startPos, this.pos);
     }
+    this.advance();
     throw new InvalidSyntaxError(startPos, this.pos,
       `Invalid operator`);
   }
@@ -660,9 +673,17 @@ class Parser {
         }
         const end = this.currentToken.end;
         this.advance();
+
+        if ([TOKEN.EQ, TOKEN.PE, TOKEN.ME].includes(this.currentToken.type)) {
+          const operatorToken = this.currentToken;
+          this.advance();
+          const expr = this.parseExpr();
+          return new BinaryOperatorNode(
+            new ListAccessNode(left, index, start, end), operatorToken, expr);
+        }
+        
         left = new ListAccessNode(left, index, start, end);
       }
-
     }
 
     return left;
@@ -673,17 +694,7 @@ class Parser {
     if (token.type === TOKEN.IDENTIFIER) {
       const identifier = new IdentifierNode(token);
       this.advance();
-      if (this.currentToken.type === TOKEN.EQ) { // =
-        const operatorToken = this.currentToken;
-        this.advance();
-        const expr = this.parseExpr();
-        return new BinaryOperatorNode(identifier, operatorToken, expr);
-      } else if (this.currentToken.type === TOKEN.PE) { // +=
-        const operatorToken = this.currentToken;
-        this.advance();
-        const expr = this.parseExpr();
-        return new BinaryOperatorNode(identifier, operatorToken, expr);
-      } else if (this.currentToken.type === TOKEN.ME) { // -=
+      if ([TOKEN.EQ, TOKEN.PE, TOKEN.ME].includes(this.currentToken.type)) { // =
         const operatorToken = this.currentToken;
         this.advance();
         const expr = this.parseExpr();
@@ -1147,6 +1158,68 @@ class Interpreter {
 
       // FOR VARIABLE ASSIGNMENTS
       if (node.token.type === TOKEN.EQ) {
+
+        // List assignment
+        if (node.left instanceof ListAccessNode) {
+          const start = node.left.start;
+          const coordinates = [];
+          let current = node.left;
+          while (current instanceof ListAccessNode) {
+            const coord = this.process(current.index);
+            if (!Number.isInteger(coord)) {
+              throw new RuntimeError(current.index.token.start, current.index.token.end,
+                `Index '${coord}' is not an integer`, this.context);
+            }
+            coordinates.push(coord);
+            current = current.list;
+          }
+          coordinates.reverse();
+
+          if (!(current instanceof IdentifierNode)) {
+            const end = current.token?.end || current.end;
+            throw new InvalidSyntaxError(start, end, 'Invalid left-hand side in assignment');
+          }
+
+          const list = this.process(current);
+
+          if (list.type !== 'elements') {
+            throw new RuntimeError(current.token.start, current.token.end,
+              `'${current.token.value}' is not a list`, this.context);
+          }
+
+          if (coordinates.length === 0) {
+            throw new RuntimeError(current.token.start, current.token.end,
+              `'${current.token.value}' is not a list`, this.context);
+          }
+
+          let currentList = list;
+          for (let i = 0; i < coordinates.length - 1; i++) {
+            const index = coordinates[i];
+            if (index < 0 || index >= currentList.length + 1) {
+              throw new RuntimeError(current.token.start, current.token.end,
+                `Index ${index} out of range for length ${currentList.length}`, this.context);
+            }
+            const nextList = currentList[index];
+            if (nextList.type !== 'elements') {
+              throw new RuntimeError(current.token.start, current.token.end,
+                `'${current.token.value}' is not a list`, this.context);
+            }
+            currentList = nextList;
+          }
+
+          const index = coordinates[coordinates.length - 1];
+          if (index < 0 || index >= currentList.length + 1) {
+            throw new RuntimeError(current.token.start, current.token.end,
+              `Index ${index} out of range for length ${currentList.length}`, this.context);
+          }
+
+          currentList[index] = right;
+          
+          return right;
+
+        }
+        
+        // Variable assignment
         if (node.left.token.type === TOKEN.IDENTIFIER) {
 
           switch (node.right.constructor) {
@@ -1173,9 +1246,9 @@ class Interpreter {
           }
 
           return right;
-        } else {
-          throw new InvalidSyntaxError(node.left.start, node.left.end, 'Invalid left-hand side in assignment')
         }
+
+        throw new InvalidSyntaxError(node.left.start, node.left.end, 'Invalid left-hand side in assignment');
       }
 
 
@@ -1599,13 +1672,52 @@ const BUILTINS = [
   new Builtin('floor', function(e) {
     return Math.floor(e);
   }, 1),
-  new Builtin('length', function(e) {
-    return e.length;
+  new Builtin('len', function(e) {
+    if (e?.constructor.name === 'String') return e.length;
+    if (e?.constructor.name === 'Array') return e.length;
+    throw new RuntimeError(this.start, this.end,
+      `Cannot get length of '${formatOutput(e)}'`, this.context);
   }, 1),
-  new Builtin('set', function(arr, i, v) {
-    arr[i] = v;
-    return arr;
-  }, 3),
+  new Builtin('min', function(a, b) {
+    if (a?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot get minimum of '${formatOutput(a)}'`, this.context);
+    }
+    if (b?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot get minimum of '${formatOutput(b)}'`, this.context);
+    }
+    return Math.min(a, b);
+  }, 2),
+  new Builtin('max', function(a, b) {
+    if (a?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot get maximum of '${formatOutput(a)}'`, this.context);
+    }
+    if (b?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot get maximum of '${formatOutput(b)}'`, this.context);
+    }
+    return Math.max(a, b);
+  }, 2),
+  new Builtin('rand', function() {
+    return Math.random();
+  }, 0),
+  new Builtin('abs', function(e) {
+    if (e?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot get absolute value of '${formatOutput(e)}'`, this.context);
+    }
+    return Math.abs(e);
+  }, 1),
+  new Builtin('sleep', function(ms) {
+    if (ms?.constructor.name !== 'Number') {
+      throw new RuntimeError(this.start, this.end,
+        `Cannot sleep for '${formatOutput(ms)}' ms`, this.context);
+    }
+    sleep(ms);
+    return null;
+  }, 1),
   new Builtin('fetch', function(url) {
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url, false);

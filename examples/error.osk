@@ -1,3 +1,4 @@
-x = 0
+add = function(a,b) => a+b
+join = function(a,b) => [a,b]
 
-print(1/x)
+join(1,2)[0] = 1
