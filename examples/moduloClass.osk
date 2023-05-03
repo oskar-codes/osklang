@@ -14,4 +14,4 @@ for i=0,n do
 end
 
 print("phi(n) =", phi(n))
-print(list)
+print("Z/nZ* =", list)

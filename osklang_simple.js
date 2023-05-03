@@ -535,10 +535,10 @@ class Parser {
 
   parseStatement() {
     const start = this.currentToken.start;
-
+    
     if (this.currentToken.matches(TOKEN.KEYWORD, 'return')) {
       this.advance();
-      if (this.currentToken === TOKEN.NEWLINE) {
+      if ([TOKEN.EOF, TOKEN.NEWLINE].includes(this.currentToken.type)) {
         return new ReturnNode(null, start, this.currentToken.end)
       } else {
         const expr = this.parseExpr();
@@ -793,7 +793,7 @@ class Parser {
     if (this.currentToken.type === TOKEN.ARROW) {
       this.advance();
       const functionBody = this.parseExpr();
-      return new FunctionDeclarationNode(null, argNameTokens.map(e => e.value), new ReturnNode(functionBody), token, token.start, this.currentToken.end);
+      return new FunctionDeclarationNode(null, argNameTokens.map(e => e.value), new ReturnNode(functionBody, token.start, this.currentToken.end), token, token.start, this.currentToken.end);
     } else if (this.currentToken.matches(TOKEN.KEYWORD, 'do')) {
       this.advance();
       const functionBody = this.parseStatements();
@@ -1031,6 +1031,9 @@ class Interpreter {
     }
 
     if (node instanceof ReturnNode) {
+      if (!exists(this.context.parent)) {
+        throw new RuntimeError(node.expr.token.start, node.expr.token.end, "Cannot return from global scope");
+      }
       this.returnValue = this.process(node.expr);
       throw 'return';
     }
@@ -1493,9 +1496,11 @@ class FunctionDeclarationNode extends Node {
   }
 }
 class ReturnNode extends Node {
-  constructor(expr) {
+  constructor(expr, start, end) {
     super();
     this.expr = expr;
+    this.start = start;
+    this.end = end;
   }
 }
 class CallNode extends Node {
