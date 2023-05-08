@@ -5,7 +5,3 @@ fib = function(n) do
 
   return fib(n - 1) + fib(n - 2)
 end
-
-for x=0,25 do
-  print(fib(x))
-end

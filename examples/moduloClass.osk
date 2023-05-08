@@ -1,5 +1,5 @@
-load("examples/gcd.osk")
-load("examples/totient.osk")
+load("lib/gcd.osk")
+load("lib/totient.osk")
 
 n = num(input("Enter n: "))
 

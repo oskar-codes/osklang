@@ -1,0 +1,24 @@
+substring = function(str, start, length) do
+  output = ""
+  for i = start, start + length do
+    output += str[i]
+  end
+  return output
+end
+
+find = function(str, substr) do
+  for i = 0, len(str) do
+    if str[i] == substr[0] do
+      found = true
+      for j = 0, len(substr) do
+        if str[i + j] != substr[j] do
+          found = false
+        end
+      end
+      if found do
+        return i
+      end
+    end
+  end
+  return -1
+end

@@ -1124,7 +1124,15 @@ class Interpreter {
       const start = node.start;
       const end = node.end;
 
-      if (list.type !== 'elements') {
+      if (type(index) !== 'number') {
+        throw new RuntimeError(start, end, `Index '${index}' is not a number`, this.context);
+      }
+
+      if (type(list) !== 'list' && type(list) !== 'string') {
+        throw new RuntimeError(start, end, `'${node.list.token.value}' is not a list nor a string`, this.context);
+      }
+
+      if (type(list) === 'list' && list.type !== 'elements') {
         throw new RuntimeError(start, end, `'${node.list.token.value}' is not a list`, this.context);
       }
       if (index < 0 || index >= list.length) {
